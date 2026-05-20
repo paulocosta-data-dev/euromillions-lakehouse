@@ -1,31 +1,37 @@
 # EuroMillions Lakehouse
 
-A lightweight production-style lakehouse analytics platform built using Apache Iceberg, DuckDB, dbt, Docker, and Python.
+A lightweight production-style analytical lakehouse platform built using Apache Iceberg, DuckDB, dbt, Docker, and Python.
 
-The project focuses on modern data engineering architecture, medallion design, ingestion engineering, operational maturity, and architectural trade-offs rather than dashboards, ML gimmicks, or infrastructure inflation.
+The project focuses on modern data engineering architecture, medallion modeling, incremental ingestion engineering, operational maturity, and architectural trade-offs rather than infrastructure inflation or tutorial-style complexity.
+
+The platform supports both:
+
+- historical bootstrap ingestion,
+- incremental API synchronization.
 
 ---
 
 # Objectives
 
-This project was designed to demonstrate practical and modern data engineering capabilities including:
+This project was designed to demonstrate practical modern data engineering capabilities including:
 
 - Apache Iceberg table management
-- Lakehouse architecture design
-- Medallion modeling
+- Open lakehouse architecture
+- Medallion data modeling
 - Incremental ingestion engineering
-- Idempotent data pipelines
+- Idempotent pipelines
+- Cross-source reconciliation
+- External API ingestion
 - dbt transformations and testing
-- Analytical data modeling
-- Data quality validation
-- CI validation workflows
+- CI validation
 - Containerized reproducibility
-- Architectural trade-off reasoning
-- Lightweight platform engineering
+- Lightweight orchestration
+- Architectural trade-off analysis
+- Operationally coherent platform design
 
 The goal is not to simulate hyperscale infrastructure.
 
-The goal is to build a coherent, operationally credible, recruiter-grade analytical platform.
+The goal is to build a realistic, reproducible, production-style analytical platform.
 
 ---
 
@@ -35,7 +41,7 @@ Detailed architecture documentation:
 
 - [Architecture Overview](docs/architecture.md)
 
-Architecture decisions:
+Architecture Decision Records:
 
 - [ADR-001: DuckDB Over Spark](docs/adr/001-duckdb-over-spark.md)
 - [ADR-002: Apache Iceberg](docs/adr/002-why-iceberg.md)
@@ -54,14 +60,25 @@ Architecture decisions:
                                      │
                                      ▼
                     ┌────────────────────────────────┐
-                    │ Python Ingestion Pipeline      │
+                    │ Historical Bootstrap Ingestion │
                     │ ingest_historical_draws.py     │
+                    └────────────────┬───────────────┘
+                                     │
+                                     ▼
+                    ┌────────────────────────────────┐
+                    │ Incremental API Ingestion      │
+                    │ ingest_latest_draws_api.py     │
                     └────────────────┬───────────────┘
                                      │
                                      ▼
                     ┌────────────────────────────────┐
                     │ Apache Iceberg Bronze Layer    │
                     │ bronze.draws_raw               │
+                    │                                │
+                    │ - append-only ingestion        │
+                    │ - snapshot-aware metadata      │
+                    │ - partitioned storage          │
+                    │ - idempotent execution         │
                     └────────────────┬───────────────┘
                                      │
                                      ▼
@@ -74,18 +91,28 @@ Architecture decisions:
                     ┌────────────────────────────────┐
                     │ dbt Silver Layer               │
                     │ silver_draws                   │
+                    │                                │
+                    │ - semantic normalization       │
+                    │ - canonical modeling           │
+                    │ - data quality validation      │
                     └────────────────┬───────────────┘
                                      │
                                      ▼
                     ┌────────────────────────────────┐
                     │ dbt Gold Layer                 │
                     │ gold_jackpot_trends            │
+                    │                                │
+                    │ - analytical marts             │
+                    │ - yearly jackpot trends        │
                     └────────────────┬───────────────┘
                                      │
                                      ▼
                     ┌────────────────────────────────┐
                     │ GitHub Actions CI              │
-                    │ dbt run + dbt test             │
+                    │                                │
+                    │ - dbt run                      │
+                    │ - dbt test                     │
+                    │ - pipeline validation          │
                     └────────────────────────────────┘
 ```
 
@@ -99,7 +126,7 @@ Architecture decisions:
 | Physical storage | Parquet |
 | Metadata catalog | Iceberg SQL catalog |
 | Ingestion | Python |
-| Serving engine | DuckDB |
+| Analytical serving | DuckDB |
 | Transformations | dbt |
 | Data quality | dbt tests |
 | Containerization | Docker |
@@ -116,10 +143,11 @@ The bronze layer preserves raw ingestion fidelity.
 Responsibilities:
 
 - append-only ingestion
-- ingestion metadata
 - immutable historical storage
-- partitioned lakehouse storage
-- minimal transformation logic
+- external API synchronization
+- replay-safe execution
+- ingestion metadata
+- partition-aware storage
 
 Technology:
 
@@ -135,9 +163,9 @@ The silver layer provides canonical analytical modeling.
 Responsibilities:
 
 - semantic normalization
-- business-safe naming
-- derived dimensions
+- canonical dimensions
 - analytical standardization
+- business-safe naming
 - data quality enforcement
 
 Technology:
@@ -149,13 +177,13 @@ Technology:
 
 ## Gold Layer
 
-The gold layer exposes analytical marts optimized for trend analysis and reporting.
+The gold layer exposes analytical marts optimized for historical trend analysis.
 
 Responsibilities:
 
-- aggregations
-- trend analytics
-- yearly jackpot analysis
+- jackpot trend analytics
+- yearly aggregations
+- reporting-ready marts
 - analytical metrics
 
 Technology:
@@ -165,38 +193,60 @@ Technology:
 
 ---
 
-# Platform Capabilities
+# Incremental Ingestion Design
 
-| Capability | Implementation |
-|---|---|
-| Lakehouse storage | Apache Iceberg |
-| Physical storage | Parquet |
-| Metadata management | Iceberg catalog |
-| Incremental ingestion | Python |
-| Idempotent pipelines | yes |
-| Analytical serving | DuckDB |
-| Transformations | dbt |
-| Medallion architecture | bronze / silver / gold |
-| Data quality testing | dbt tests |
-| CI validation | GitHub Actions |
-| Containerization | Docker |
-| Local reproducibility | yes |
+The platform supports:
+
+- historical bootstrap loading,
+- incremental API synchronization,
+- append-only Iceberg ingestion,
+- replay-safe execution,
+- cross-source reconciliation,
+- idempotent pipeline behavior.
+
+The ingestion layer intentionally avoids full rebuild strategies.
+
+Only missing draws are appended into the Iceberg bronze layer.
+
+This more closely reflects realistic production ingestion behavior.
 
 ---
 
-# Incremental Ingestion Design
+# External API Ingestion
 
-The ingestion pipeline intentionally supports:
+The platform integrates with an external EuroMillions API source.
 
-- append-only ingestion
-- idempotent execution
+Capabilities:
+
+- incremental synchronization
+- schema normalization
+- source reconciliation
 - duplicate prevention
-- replay-safe ingestion
-- partition-aware storage
+- rate-limit handling
+- append-only ingestion semantics
 
-The pipeline only appends missing draws instead of rebuilding the entire lakehouse state.
+The ingestion layer gracefully handles API throttling behavior while preserving deterministic execution.
 
-This more closely reflects realistic production ingestion behavior.
+---
+
+# Platform Capabilities
+
+| Capability | Status |
+|---|---|
+| Lakehouse storage | yes |
+| Apache Iceberg | yes |
+| Medallion architecture | yes |
+| Incremental ingestion | yes |
+| External API ingestion | yes |
+| Cross-source reconciliation | yes |
+| Idempotent pipelines | yes |
+| Replay-safe execution | yes |
+| Analytical marts | yes |
+| dbt transformations | yes |
+| dbt tests | yes |
+| CI validation | yes |
+| Containerized execution | yes |
+| Local reproducibility | yes |
 
 ---
 
@@ -204,14 +254,14 @@ This more closely reflects realistic production ingestion behavior.
 
 Apache Iceberg was selected to demonstrate:
 
-- modern lakehouse architecture
-- snapshot-aware metadata
-- partition-aware storage
-- schema evolution concepts
-- open table standards
-- engine interoperability
+- modern lakehouse architecture,
+- snapshot-aware metadata management,
+- open table standards,
+- schema evolution concepts,
+- partition-aware analytical storage,
+- engine interoperability.
 
-The project intentionally avoids warehouse-native storage abstractions in favor of open lakehouse standards.
+The project intentionally prioritizes open lakehouse standards over warehouse-native abstractions.
 
 ---
 
@@ -219,11 +269,11 @@ The project intentionally avoids warehouse-native storage abstractions in favor 
 
 DuckDB was selected because:
 
-- workload size does not justify distributed compute
-- local iteration speed is significantly faster
-- operational overhead is dramatically lower
-- reproducibility becomes simpler
-- dbt integration is excellent
+- workload size does not justify distributed compute,
+- local iteration speed is significantly faster,
+- operational overhead is dramatically lower,
+- developer experience is cleaner,
+- dbt integration is excellent.
 
 The architecture intentionally prioritizes engineering coherence and realistic workload sizing over distributed compute simulation.
 
@@ -231,18 +281,22 @@ The architecture intentionally prioritizes engineering coherence and realistic w
 
 # Why No Orchestration Platform
 
-Dedicated orchestration tooling was intentionally excluded.
+Dedicated orchestration tooling was intentionally avoided.
 
 The workload is:
 
-- batch-oriented
-- deterministic
-- append-only
-- low-frequency
+- deterministic,
+- append-only,
+- batch-oriented,
+- operationally lightweight.
 
-Introducing Airflow, Dagster, or Prefect would significantly increase infrastructure complexity without providing proportional engineering value.
+Introducing Airflow or Dagster would significantly increase complexity without providing proportional engineering value.
 
-The project intentionally avoids architecture theater.
+Instead, the platform uses:
+
+- deterministic pipeline execution,
+- application-level orchestration,
+- single-entrypoint automation.
 
 ---
 
@@ -252,9 +306,9 @@ The project intentionally prioritizes:
 
 - lightweight operational design
 - local reproducibility
-- open table standards
-- architectural coherence
+- open lakehouse standards
 - deterministic execution
+- architectural coherence
 - realistic workload sizing
 
 Several technologies were intentionally excluded:
@@ -277,6 +331,9 @@ The project focuses on engineering maturity rather than infrastructure scale sim
 ```text
 euromillions-lakehouse/
 │
+├── .github/
+│   └── workflows/
+│
 ├── data/
 │   └── raw/
 │
@@ -288,21 +345,46 @@ euromillions-lakehouse/
 │   └── architecture.md
 │
 ├── scripts/
+│   ├── ingest_historical_draws.py
+│   ├── ingest_latest_draws_api.py
+│   ├── load_duckdb_analytics.py
+│   └── run_pipeline.py
 │
-├── warehouse/
-│
-├── .github/
-│   └── workflows/
-│
+├── .gitignore
 ├── docker-compose.yml
 ├── Dockerfile
+├── LICENSE
+├── README.md
 ├── requirements.txt
-└── README.md
+└── run_platform.py
 ```
 
 ---
 
 # Local Development
+
+## Execute Entire Platform
+
+From repository root:
+
+```bash
+python run_platform.py
+```
+
+This automatically:
+
+- stops previous containers
+- builds Docker image
+- starts platform
+- runs incremental ingestion
+- refreshes DuckDB serving layer
+- executes dbt models
+- runs dbt tests
+- optionally stops containers
+
+---
+
+# Manual Platform Startup
 
 ## Start Platform
 
@@ -320,15 +402,15 @@ docker exec -it euromillions-lakehouse bash
 
 ---
 
-## Run Ingestion
+## Run Incremental API Ingestion
 
 ```bash
-python scripts/ingest_historical_draws.py
+python scripts/ingest_latest_draws_api.py
 ```
 
 ---
 
-## Load DuckDB Serving Layer
+## Refresh DuckDB Serving Layer
 
 ```bash
 python scripts/load_duckdb_analytics.py
@@ -336,7 +418,7 @@ python scripts/load_duckdb_analytics.py
 
 ---
 
-## Run dbt Models
+## Execute dbt Models
 
 ```bash
 cd /app/dbt_euromillions_lkh
@@ -381,12 +463,13 @@ http://localhost:8080
 GitHub Actions automatically validates:
 
 - Docker build
-- ingestion execution
+- pipeline execution
+- incremental ingestion
 - DuckDB serving layer
-- dbt model execution
+- dbt transformations
 - dbt tests
 
-The CI pipeline ensures the platform remains reproducible and operationally consistent.
+This ensures the platform remains reproducible and operationally consistent.
 
 ---
 
@@ -418,7 +501,10 @@ This project demonstrates practical experience with:
 - Apache Iceberg table management
 - medallion data modeling
 - incremental ingestion engineering
-- idempotent data pipelines
+- state-aware synchronization
+- cross-source reconciliation
+- external API ingestion
+- idempotent pipelines
 - dbt analytical transformations
 - analytical contract validation
 - containerized reproducibility
@@ -438,7 +524,7 @@ Potential future evolutions include:
 - freshness validation
 - late-arriving data handling
 - incremental analytical marts
-- source-system automation
+- additional source integrations
 
 These were intentionally postponed to avoid unnecessary architectural complexity.
 
@@ -450,18 +536,17 @@ This project intentionally avoids:
 
 - infrastructure inflation
 - orchestration theater
-- distributed compute simulation
+- fake distributed scale
 - unnecessary cloud dependencies
+- streaming complexity
 - ML gimmicks
-- prediction systems
 
 The architecture focuses on:
 
 - engineering discipline
 - operational simplicity
-- architectural coherence
-- realistic analytical platform design
 - reproducibility
 - maintainability
+- realistic analytical platform design
 
 The objective is to demonstrate strong modern data engineering fundamentals through a lightweight but production-style lakehouse platform.
