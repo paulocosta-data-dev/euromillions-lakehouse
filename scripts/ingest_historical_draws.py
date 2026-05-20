@@ -20,6 +20,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 WAREHOUSE_PATH = BASE_DIR / "warehouse"
 
+WAREHOUSE_PATH.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
 CSV_PATH = (
     BASE_DIR
     / "data"
