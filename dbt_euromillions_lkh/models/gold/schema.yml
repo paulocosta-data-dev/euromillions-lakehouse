@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: gold_jackpot_trends
+
+    description: >
+      Aggregated yearly jackpot trend metrics.
+
+    columns:
+
+      - name: draw_year
+
+        tests:
+          - not_null
+          - unique
+
+      - name: total_draws
+
+        tests:
+          - not_null
+
+      - name: avg_jackpot
+
+        tests:
+          - not_null

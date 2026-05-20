@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+
+jobs:
+
+  validate-lakehouse:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker compose build
+
+      - name: Start container
+        run: docker compose up -d
+
+      - name: Run ingestion pipeline
+        run: |
+          docker exec euromillions-lakehouse \
+          python scripts/ingest_historical_draws.py
+
+      - name: Load DuckDB serving layer
+        run: |
+          docker exec euromillions-lakehouse \
+          python scripts/load_duckdb_analytics.py
+
+      - name: Run dbt models
+        run: |
+          docker exec euromillions-lakehouse \
+          bash -c "cd /app/dbt_euromillions_lkh && dbt run"
+
+      - name: Run dbt tests
+        run: |
+          docker exec euromillions-lakehouse \
+          bash -c "cd /app/dbt_euromillions_lkh && dbt test"

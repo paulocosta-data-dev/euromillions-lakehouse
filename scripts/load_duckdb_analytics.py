@@ -23,14 +23,14 @@ catalog = load_catalog(
 )
 
 # -----------------------------------
-# Load Iceberg silver table
+# Load bronze Iceberg table
 # -----------------------------------
 
-silver_table = catalog.load_table("silver.draws_clean")
+bronze_table = catalog.load_table("bronze.draws_raw")
 
-silver_df = silver_table.scan().to_arrow().to_pandas()
+bronze_df = bronze_table.scan().to_arrow().to_pandas()
 
-print("Loaded Iceberg silver table.")
+print("Loaded Iceberg bronze table.")
 
 # -----------------------------------
 # Connect to DuckDB
@@ -39,27 +39,31 @@ print("Loaded Iceberg silver table.")
 con = duckdb.connect(str(DUCKDB_PATH))
 
 # -----------------------------------
-# Clean old recursive objects
+# Cleanup existing objects
 # -----------------------------------
 
 con.execute("DROP VIEW IF EXISTS silver_draws")
-con.execute("DROP TABLE IF EXISTS raw_silver_draws")
+con.execute("DROP TABLE IF EXISTS raw_bronze_draws")
 
 print("Old objects cleaned.")
 
 # -----------------------------------
-# Create raw analytics table
+# Register dataframe
 # -----------------------------------
 
-con.register("silver_df_view", silver_df)
+con.register("bronze_df_view", bronze_df)
+
+# -----------------------------------
+# Create raw serving table
+# -----------------------------------
 
 con.execute("""
-    CREATE TABLE raw_silver_draws AS
+    CREATE TABLE raw_bronze_draws AS
     SELECT *
-    FROM silver_df_view
+    FROM bronze_df_view
 """)
 
-print("DuckDB raw analytics table created.")
+print("DuckDB raw serving table created.")
 
 # -----------------------------------
 # Validate load
@@ -67,7 +71,8 @@ print("DuckDB raw analytics table created.")
 
 result = con.execute("""
     SELECT *
-    FROM raw_silver_draws
+    FROM raw_bronze_draws
+    LIMIT 5
 """).fetchdf()
 
 print(result)
