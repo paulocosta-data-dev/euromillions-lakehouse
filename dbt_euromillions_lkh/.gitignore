@@ -1,4 +1,26 @@
+# Python
+__pycache__/
+*.pyc
 
-target/
-dbt_packages/
-logs/
+# Virtual environments
+venv/
+.env
+
+# DuckDB
+*.duckdb
+
+# Iceberg warehouse runtime
+warehouse/
+
+# dbt artifacts
+dbt_euromillions_lkh/target/
+dbt_euromillions_lkh/logs/
+dbt_euromillions_lkh/dbt_packages/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
