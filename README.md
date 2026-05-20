@@ -1,12 +1,8 @@
 # EuroMillions Lakehouse
 
-A lightweight production-style lakehouse platform for historical EuroMillions jackpot analytics built with Apache Iceberg, DuckDB, dbt, Docker, and PyIceberg.
+A lightweight production-style lakehouse analytics platform built using Apache Iceberg, DuckDB, dbt, Docker, and Python.
 
-This project focuses on modern data engineering architecture, medallion design, analytical modeling, incremental processing, and operational trade-offs rather than dashboards or machine learning gimmicks.
-
-The goal is not to predict lottery numbers.
-
-The goal is to demonstrate realistic analytical platform engineering using modern lakehouse concepts while remaining fully reproducible and runnable locally.
+The project focuses on modern data engineering architecture, medallion design, ingestion engineering, operational maturity, and architectural trade-offs rather than dashboards, ML gimmicks, or infrastructure inflation.
 
 ---
 
@@ -15,86 +11,99 @@ The goal is to demonstrate realistic analytical platform engineering using moder
 This project was designed to demonstrate practical and modern data engineering capabilities including:
 
 - Apache Iceberg table management
-- Medallion lakehouse architecture
-- Containerized local development
-- Reproducible analytical environments
-- Incremental transformation patterns
-- dbt modeling and lineage
+- Lakehouse architecture design
+- Medallion modeling
+- Incremental ingestion engineering
+- Idempotent data pipelines
+- dbt transformations and testing
+- Analytical data modeling
 - Data quality validation
-- Lakehouse trade-off awareness
+- CI validation workflows
+- Containerized reproducibility
+- Architectural trade-off reasoning
 - Lightweight platform engineering
 
 The goal is not to simulate hyperscale infrastructure.
 
-The goal is to build a realistic, coherent, and operationally credible local analytics platform.
-
----
-
-# Architecture Stack
-
-| Layer | Technology | Why |
-|---|---|---|
-| Runtime Environment | Docker | Reproducible local development |
-| Ingestion | Python | Lightweight and flexible ingestion workflows |
-| Table Format | Apache Iceberg | Snapshot-based lakehouse table management |
-| Metadata Layer | PyIceberg | Native Iceberg catalog and table operations |
-| Physical Storage | Parquet | Columnar analytical storage |
-| Analytical Engine | DuckDB | Fast local OLAP execution without cluster overhead |
-| Transformation Layer | dbt | Declarative SQL modeling and lineage |
-| Catalog Backend | SQLite | Lightweight local Iceberg catalog |
-| Data Validation | dbt tests | Analytical trust and schema validation |
-
-This stack intentionally prioritizes:
-- local reproducibility,
-- operational simplicity,
-- architectural clarity,
-- low infrastructure overhead.
-
-The project was designed to remain fully runnable on a local machine without requiring cloud infrastructure or distributed compute frameworks.
+The goal is to build a coherent, operationally credible, recruiter-grade analytical platform.
 
 ---
 
 # Architecture
 
+Detailed architecture documentation:
+
+- [Architecture Overview](docs/architecture.md)
+
+Architecture decisions:
+
+- [ADR-001: DuckDB Over Spark](docs/adr/001-duckdb-over-spark.md)
+- [ADR-002: Apache Iceberg](docs/adr/002-why-iceberg.md)
+- [ADR-003: Local-First Architecture](docs/adr/003-local-first-architecture.md)
+- [ADR-004: No Orchestration Platform](docs/adr/004-no-orchestration-platform.md)
+
+---
+
+# High-Level Architecture
+
 ```text
-                ┌────────────────────┐
-                │ Historical CSV/API │
-                └─────────┬──────────┘
-                          │
-                          ▼
-                ┌────────────────────┐
-                │ Python Ingestion   │
-                └─────────┬──────────┘
-                          │
-                          ▼
-                ┌────────────────────┐
-                │ Iceberg Bronze     │
-                │ draws_raw          │
-                └─────────┬──────────┘
-                          │
-                          ▼
-                ┌────────────────────┐
-                │ Iceberg Silver     │
-                │ draws_clean        │
-                └─────────┬──────────┘
-                          │
-                          ▼
-                ┌────────────────────┐
-                │ DuckDB Serving     │
-                │ raw_silver_draws   │
-                └─────────┬──────────┘
-                          │
-                          ▼
-                ┌────────────────────┐
-                │ dbt Silver Models  │
-                └─────────┬──────────┘
-                          │
-                          ▼
-                ┌────────────────────┐
-                │ dbt Gold Marts     │
-                │ jackpot_trends     │
-                └────────────────────┘
+                        ┌─────────────────────────┐
+                        │ Historical CSV Dataset  │
+                        │ EuroMillions Draws      │
+                        └────────────┬────────────┘
+                                     │
+                                     ▼
+                    ┌────────────────────────────────┐
+                    │ Python Ingestion Pipeline      │
+                    │ ingest_historical_draws.py     │
+                    └────────────────┬───────────────┘
+                                     │
+                                     ▼
+                    ┌────────────────────────────────┐
+                    │ Apache Iceberg Bronze Layer    │
+                    │ bronze.draws_raw               │
+                    └────────────────┬───────────────┘
+                                     │
+                                     ▼
+                    ┌────────────────────────────────┐
+                    │ DuckDB Serving Layer           │
+                    │ raw_bronze_draws               │
+                    └────────────────┬───────────────┘
+                                     │
+                                     ▼
+                    ┌────────────────────────────────┐
+                    │ dbt Silver Layer               │
+                    │ silver_draws                   │
+                    └────────────────┬───────────────┘
+                                     │
+                                     ▼
+                    ┌────────────────────────────────┐
+                    │ dbt Gold Layer                 │
+                    │ gold_jackpot_trends            │
+                    └────────────────┬───────────────┘
+                                     │
+                                     ▼
+                    ┌────────────────────────────────┐
+                    │ GitHub Actions CI              │
+                    │ dbt run + dbt test             │
+                    └────────────────────────────────┘
 ```
+
+---
+
+# Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Storage abstraction | Apache Iceberg |
+| Physical storage | Parquet |
+| Metadata catalog | Iceberg SQL catalog |
+| Ingestion | Python |
+| Serving engine | DuckDB |
+| Transformations | dbt |
+| Data quality | dbt tests |
+| Containerization | Docker |
+| CI validation | GitHub Actions |
 
 ---
 
@@ -102,160 +111,164 @@ The project was designed to remain fully runnable on a local machine without req
 
 ## Bronze Layer
 
-### `bronze.draws_raw`
+The bronze layer preserves raw ingestion fidelity.
 
-Raw ingestion layer.
+Responsibilities:
 
-Characteristics:
-- permissive schema
-- append-oriented
-- replayable ingestion
-- minimal validation
-- ingestion fidelity preservation
+- append-only ingestion
+- ingestion metadata
+- immutable historical storage
+- partitioned lakehouse storage
+- minimal transformation logic
 
-Purpose:
-preserve source-system fidelity and maintain raw historical ingestion reproducibility.
+Technology:
+
+- Apache Iceberg
+- Parquet
 
 ---
 
 ## Silver Layer
 
-### `silver.draws_clean`
+The silver layer provides canonical analytical modeling.
 
-Canonical cleaned analytical dataset.
+Responsibilities:
 
-Characteristics:
-- validated records
-- standardized types
-- deduplicated rows
-- enforced analytical contracts
+- semantic normalization
+- business-safe naming
+- derived dimensions
+- analytical standardization
+- data quality enforcement
 
-Purpose:
-provide trusted and reusable analytical datasets.
+Technology:
+
+- dbt
+- DuckDB
 
 ---
 
 ## Gold Layer
 
-### `gold_jackpot_trends`
+The gold layer exposes analytical marts optimized for trend analysis and reporting.
 
-Business-oriented analytical mart.
+Responsibilities:
 
-Metrics include:
-- yearly draw counts
-- average jackpot
-- maximum jackpot
-- minimum jackpot
-- total jackpot amount
+- aggregations
+- trend analytics
+- yearly jackpot analysis
+- analytical metrics
 
-Purpose:
-support analytical consumption and trend analysis.
+Technology:
+
+- dbt
+- DuckDB
 
 ---
 
-# Data Flow
+# Platform Capabilities
 
-```text
-CSV ingestion
-        ↓
-Iceberg bronze table
-        ↓
-Iceberg silver table
-        ↓
-DuckDB analytical serving layer
-        ↓
-dbt transformations
-        ↓
-gold analytical marts
-```
+| Capability | Implementation |
+|---|---|
+| Lakehouse storage | Apache Iceberg |
+| Physical storage | Parquet |
+| Metadata management | Iceberg catalog |
+| Incremental ingestion | Python |
+| Idempotent pipelines | yes |
+| Analytical serving | DuckDB |
+| Transformations | dbt |
+| Medallion architecture | bronze / silver / gold |
+| Data quality testing | dbt tests |
+| CI validation | GitHub Actions |
+| Containerization | Docker |
+| Local reproducibility | yes |
+
+---
+
+# Incremental Ingestion Design
+
+The ingestion pipeline intentionally supports:
+
+- append-only ingestion
+- idempotent execution
+- duplicate prevention
+- replay-safe ingestion
+- partition-aware storage
+
+The pipeline only appends missing draws instead of rebuilding the entire lakehouse state.
+
+This more closely reflects realistic production ingestion behavior.
 
 ---
 
 # Why Apache Iceberg
 
-Apache Iceberg was selected because it provides:
+Apache Iceberg was selected to demonstrate:
 
-- snapshot-based table management
-- metadata-driven storage
-- schema evolution capabilities
-- partition abstraction
-- modern lakehouse semantics
+- modern lakehouse architecture
+- snapshot-aware metadata
+- partition-aware storage
+- schema evolution concepts
+- open table standards
+- engine interoperability
 
-This project intentionally uses real Iceberg tables rather than plain parquet folders to demonstrate modern analytical storage concepts.
-
----
-
-# Why DuckDB Instead Of Spark
-
-Spark was intentionally excluded.
-
-At this project scale:
-- distributed compute provides little practical value,
-- local development becomes significantly slower,
-- infrastructure complexity increases dramatically,
-- operational overhead outweighs analytical value.
-
-DuckDB provides:
-- fast local OLAP execution,
-- lightweight deployment,
-- strong dbt integration,
-- excellent local developer experience.
-
-Trade-off:
-the project sacrifices distributed scalability in favor of simplicity, reproducibility, and fast iteration.
-
-This was a deliberate engineering decision rather than a limitation.
+The project intentionally avoids warehouse-native storage abstractions in favor of open lakehouse standards.
 
 ---
 
-# Why PyIceberg
+# Why DuckDB Instead of Spark
 
-DuckDB currently has limited and inconsistent Iceberg write support.
+DuckDB was selected because:
 
-Instead of forcing unstable interoperability, responsibilities were separated:
+- workload size does not justify distributed compute
+- local iteration speed is significantly faster
+- operational overhead is dramatically lower
+- reproducibility becomes simpler
+- dbt integration is excellent
 
-| Concern | Technology |
+The architecture intentionally prioritizes engineering coherence and realistic workload sizing over distributed compute simulation.
+
+---
+
+# Why No Orchestration Platform
+
+Dedicated orchestration tooling was intentionally excluded.
+
+The workload is:
+
+- batch-oriented
+- deterministic
+- append-only
+- low-frequency
+
+Introducing Airflow, Dagster, or Prefect would significantly increase infrastructure complexity without providing proportional engineering value.
+
+The project intentionally avoids architecture theater.
+
+---
+
+# Engineering Trade-Offs
+
+The project intentionally prioritizes:
+
+- lightweight operational design
+- local reproducibility
+- open table standards
+- architectural coherence
+- deterministic execution
+- realistic workload sizing
+
+Several technologies were intentionally excluded:
+
+| Technology | Reason |
 |---|---|
-| Iceberg metadata management | PyIceberg |
-| Analytical querying | DuckDB |
+| Spark | workload does not justify distributed compute |
+| Airflow | orchestration complexity not required |
+| Kubernetes | infrastructure inflation |
+| Kafka | no streaming requirement |
+| Cloud warehouses | local-first architecture preferred |
+| ML / prediction | outside project scope |
 
-Trade-off:
-slightly more architectural complexity in exchange for stable and deterministic Iceberg table management.
-
----
-
-# Incremental Processing
-
-Gold marts use incremental materialization patterns via dbt.
-
-This demonstrates:
-- state-aware transformations,
-- reduced recomputation,
-- analytical persistence strategies,
-- cost-aware modeling.
-
-Current incremental strategy:
-- append-oriented yearly aggregation logic
-- uniqueness boundary on `draw_year`
-
-Trade-off:
-historical recomputation is intentionally simplified to avoid unnecessary complexity for a lightweight local platform.
-
----
-
-# Data Quality
-
-dbt tests are used to validate:
-- uniqueness,
-- nullability,
-- canonical integrity.
-
-Examples:
-- unique draw IDs
-- non-null jackpot amounts
-- non-null draw dates
-
-This introduces explicit analytical trust boundaries and governance semantics.
+The project focuses on engineering maturity rather than infrastructure scale simulation.
 
 ---
 
@@ -265,11 +278,22 @@ This introduces explicit analytical trust boundaries and governance semantics.
 euromillions-lakehouse/
 │
 ├── data/
-├── scripts/
-├── warehouse/
+│   └── raw/
+│
 ├── dbt_euromillions_lkh/
-├── ingestion/
-├── logs/
+│
+├── docs/
+│   ├── adr/
+│   ├── images/
+│   └── architecture.md
+│
+├── scripts/
+│
+├── warehouse/
+│
+├── .github/
+│   └── workflows/
+│
 ├── docker-compose.yml
 ├── Dockerfile
 ├── requirements.txt
@@ -278,13 +302,12 @@ euromillions-lakehouse/
 
 ---
 
-# Running The Project
+# Local Development
 
-## Start Environment
+## Start Platform
 
 ```bash
-docker compose build --no-cache
-docker compose up -d
+docker compose up -d --build
 ```
 
 ---
@@ -297,23 +320,15 @@ docker exec -it euromillions-lakehouse bash
 
 ---
 
-## Create Bronze Iceberg Table
+## Run Ingestion
 
 ```bash
-python scripts/create_iceberg_table.py
+python scripts/ingest_historical_draws.py
 ```
 
 ---
 
-## Create Silver Iceberg Table
-
-```bash
-python scripts/create_silver_table.py
-```
-
----
-
-## Load DuckDB Analytics Layer
+## Load DuckDB Serving Layer
 
 ```bash
 python scripts/load_duckdb_analytics.py
@@ -327,174 +342,126 @@ python scripts/load_duckdb_analytics.py
 cd /app/dbt_euromillions_lkh
 
 dbt run
+```
+
+---
+
+## Run dbt Tests
+
+```bash
 dbt test
 ```
 
 ---
 
-# Engineering Trade-Offs
+## Generate dbt Documentation
 
-This project intentionally favors:
-- architectural coherence,
-- operational realism,
-- reproducibility,
-- low infrastructure overhead,
-
-over unnecessary infrastructure complexity.
-
-Several technologies and patterns were deliberately excluded.
+```bash
+dbt docs generate
+```
 
 ---
 
-## Why No Spark Cluster
+## Serve dbt Documentation
 
-Spark was intentionally excluded because:
-- the dataset volume does not justify distributed compute,
-- local iteration speed would degrade significantly,
-- operational complexity would increase dramatically.
+```bash
+dbt docs serve --host 0.0.0.0 --port 8080
+```
 
-The project focuses on analytical platform design rather than distributed infrastructure simulation.
+Then open:
 
----
-
-## Why No Airflow Or Dagster
-
-Orchestration tooling was intentionally postponed.
-
-Current pipeline complexity does not justify orchestration overhead.
-
-Adding orchestration prematurely would:
-- increase infrastructure footprint,
-- reduce local simplicity,
-- create operational complexity with minimal engineering benefit.
-
-Trade-off:
-manual execution remains acceptable while foundational architecture is stabilized.
+```text
+http://localhost:8080
+```
 
 ---
 
-## Why No Kubernetes
+# CI Validation
 
-Kubernetes and distributed deployment tooling were intentionally excluded.
+GitHub Actions automatically validates:
 
-Reason:
-the project goal is analytical platform engineering rather than infrastructure orchestration simulation.
+- Docker build
+- ingestion execution
+- DuckDB serving layer
+- dbt model execution
+- dbt tests
 
-Trade-off:
-reduced deployment realism in exchange for:
-- maintainability,
-- simpler onboarding,
-- lower operational burden,
-- fully local reproducibility.
+The CI pipeline ensures the platform remains reproducible and operationally consistent.
 
 ---
 
-## Why No Streaming
+# Screenshots
 
-Streaming technologies such as Kafka or Flink were intentionally excluded.
+## dbt Lineage
 
-EuroMillions historical analytics is fundamentally batch-oriented.
-
-Adding streaming infrastructure would primarily create architectural theater rather than analytical value.
-
-Trade-off:
-the platform focuses exclusively on batch analytical patterns.
+![dbt-lineage](docs/images/dbt-lineage.png)
 
 ---
 
-## Why Local-First Architecture
+## dbt Documentation
 
-The platform was intentionally designed to run locally through Docker.
-
-This enables:
-- deterministic execution,
-- reproducible onboarding,
-- isolated dependency management,
-- zero cloud cost.
-
-Trade-off:
-reduced production deployment realism in exchange for developer accessibility and operational simplicity.
+![dbt-docs](docs/images/dbt-docs.png)
 
 ---
 
-## Why Incremental Logic Exists Only In Gold Layer
+## GitHub Actions CI
 
-Incremental processing was intentionally introduced only for analytical marts.
-
-Bronze and silver layers currently use full refresh semantics because:
-- data volume remains relatively small,
-- transformation cost is low,
-- simpler logic improves maintainability.
-
-Trade-off:
-slightly higher recomputation cost in exchange for cleaner transformation semantics and lower operational complexity.
+![github-actions](docs/images/github-actions.png)
 
 ---
 
-# Current Limitations
+# What This Project Demonstrates
 
-Current limitations intentionally accepted in this architecture include:
+This project demonstrates practical experience with:
 
-- local-only execution
-- simplified incremental semantics
-- no orchestration layer
-- no distributed compute
-- no cloud object storage
-- no automated freshness monitoring
-- no CI/CD validation yet
+- modern lakehouse architecture
+- Apache Iceberg table management
+- medallion data modeling
+- incremental ingestion engineering
+- idempotent data pipelines
+- dbt analytical transformations
+- analytical contract validation
+- containerized reproducibility
+- CI-driven validation
+- architectural trade-off analysis
+- lightweight platform engineering
 
-These limitations are deliberate trade-offs rather than accidental omissions.
+The project intentionally emphasizes engineering judgment and operational coherence over unnecessary infrastructure complexity.
 
 ---
 
 # Future Improvements
 
-Potential future enhancements include:
+Potential future evolutions include:
 
-- API-based ingestion
-- schema evolution demonstrations
-- freshness monitoring
-- CI validation pipelines
-- dbt documentation hosting
-- automated data quality alerting
-- snapshot-based historical tracking
+- schema evolution simulations
+- freshness validation
+- late-arriving data handling
+- incremental analytical marts
+- source-system automation
 
-Future improvements will continue prioritizing:
-- architectural coherence,
-- operational simplicity,
-- realistic engineering value.
+These were intentionally postponed to avoid unnecessary architectural complexity.
 
 ---
 
-# Key Engineering Concepts Demonstrated
+# Final Notes
 
-- Apache Iceberg table management
-- metadata-driven lakehouse architecture
-- medallion data modeling
-- dbt transformation lineage
-- incremental analytical processing
-- schema enforcement
-- analytical data contracts
-- reproducible containerized environments
-- lightweight analytical serving layers
-- operational trade-off reasoning
+This project intentionally avoids:
 
----
+- infrastructure inflation
+- orchestration theater
+- distributed compute simulation
+- unnecessary cloud dependencies
+- ML gimmicks
+- prediction systems
 
-# Design Philosophy
+The architecture focuses on:
 
-This project intentionally favors:
+- engineering discipline
+- operational simplicity
+- architectural coherence
+- realistic analytical platform design
+- reproducibility
+- maintainability
 
-- engineering depth over tool count
-- coherence over complexity
-- operational realism over infrastructure theater
-- reproducibility over cloud dependency
-- analytical platform thinking over dashboard-centric development
-
-The objective is to demonstrate how modern analytical systems can remain:
-- maintainable,
-- reproducible,
-- lightweight,
-- production-aware,
-
-without unnecessary infrastructure inflation.
+The objective is to demonstrate strong modern data engineering fundamentals through a lightweight but production-style lakehouse platform.
