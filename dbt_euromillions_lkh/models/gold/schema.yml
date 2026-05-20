@@ -1,14 +1,18 @@
 version: 2
 
 models:
+
   - name: gold_jackpot_trends
 
     description: >
-      Aggregated yearly jackpot trend metrics.
+      Aggregated yearly jackpot trend analytics mart.
 
     columns:
 
       - name: draw_year
+
+        description: >
+          Calendar year of EuroMillions draws.
 
         tests:
           - not_null
@@ -16,10 +20,31 @@ models:
 
       - name: total_draws
 
+        description: >
+          Total number of draws for the year.
+
         tests:
           - not_null
 
       - name: avg_jackpot
 
+        description: >
+          Average jackpot amount for the year.
+
         tests:
           - not_null
+
+      - name: max_jackpot
+
+        description: >
+          Maximum jackpot amount observed for the year.
+
+      - name: min_jackpot
+
+        description: >
+          Minimum jackpot amount observed for the year.
+
+      - name: total_jackpot_amount
+
+        description: >
+          Total jackpot amount aggregated across all draws in the year.

@@ -1,16 +1,19 @@
 version: 2
 
 models:
+
   - name: silver_draws
 
     description: >
-      Canonical cleaned EuroMillions draw dataset.
+      Canonical EuroMillions analytical dataset derived from
+      raw Iceberg bronze ingestion.
 
     columns:
 
       - name: draw_id
 
-        description: Unique identifier for each draw.
+        description: >
+          Synthetic unique identifier assigned during ingestion.
 
         tests:
           - not_null
@@ -18,14 +21,35 @@ models:
 
       - name: draw_date
 
-        description: Official draw date.
+        description: >
+          Official EuroMillions draw date.
 
         tests:
           - not_null
+          - unique
 
       - name: jackpot_amount
 
-        description: Total jackpot amount in EUR.
+        description: >
+          Jackpot amount for the corresponding draw in EUR.
 
         tests:
           - not_null
+
+      - name: jackpot_currency
+
+        description: >
+          Currency associated with jackpot amounts.
+
+        tests:
+          - not_null
+
+      - name: draw_year
+
+        description: >
+          Calendar year extracted from draw date.
+
+      - name: draw_month
+
+        description: >
+          Calendar month extracted from draw date.
