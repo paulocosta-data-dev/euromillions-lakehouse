@@ -25,6 +25,24 @@ jobs:
       - name: Start container
         run: docker compose up -d
 
+      - name: Create dbt profile
+        run: |
+          docker exec euromillions-lakehouse bash -c "
+          mkdir -p /root/.dbt &&
+
+          cat > /root/.dbt/profiles.yml <<EOF
+          dbt_euromillions_lkh:
+            target: dev
+
+            outputs:
+
+              dev:
+                type: duckdb
+                path: /app/warehouse/analytics.duckdb
+                threads: 4
+          EOF
+          "
+
       - name: Run ingestion pipeline
         run: |
           docker exec euromillions-lakehouse \
