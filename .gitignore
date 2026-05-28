@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 .env
 warehouse/
+logs/
+dbt_euromillions_lkh/logs/
+dbt_euromillions_lkh/target/
