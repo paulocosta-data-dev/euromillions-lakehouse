@@ -8,7 +8,6 @@ services:
 
     volumes:
       - .:/app
-      - C:\Users\pdcge\.dbt:/root/.dbt
 
     working_dir: /app
 
